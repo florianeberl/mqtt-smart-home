@@ -1,0 +1,5 @@
+package-lock.json
+.npmrc
+node_modules/
+*.js
+.env
