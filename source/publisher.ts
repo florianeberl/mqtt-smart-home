@@ -16,10 +16,10 @@ mqttClient.on("connect", async () => {
   // console.log(packet); // Param: packet: Mqtt.Packet
   mqttClient.subscribe(MqttTopics.LIGHT_INTENSITY_UPDATE_REQUEST);
   mqttClient.subscribe(MqttTopics.LIGHT_SENSOR_STATUS_UPDATE_REQUEST);
-  sendLightSensorStatus();
+  sendLightSensorStatus(lightSensorStatus);
   // TODO connect GPIO PIN
   lightSensorStatus = LightSensorStatus.AVAILABLE;
-  sendLightSensorStatus();
+  sendLightSensorStatus(lightSensorStatus);
 });
 
 mqttClient.on('message', (topic, message) => {
@@ -27,10 +27,10 @@ mqttClient.on('message', (topic, message) => {
 
   switch(topic) {
     case MqttTopics.LIGHT_INTENSITY_UPDATE_REQUEST:
-      sendLightIntensity();
+      sendLightIntensity(lightIntensity);
       break;
     case MqttTopics.LIGHT_SENSOR_STATUS_UPDATE_REQUEST:
-      sendLightSensorStatus();
+      sendLightSensorStatus(lightSensorStatus);
       break;
     default:
       break;
@@ -60,45 +60,14 @@ async function readLightStatus(): Promise<void> {
   console.log(`Light Status: ${lightIntensity}`);
   if(changed) {
     console.log(`Light Status: ${lightIntensity} --> CHANGE DETECTED`);
-    sendLightIntensity();
+    sendLightIntensity(lightIntensity);
   }
 }
 
-function sendLightIntensity() {
+function sendLightIntensity(lightIntensity: LightIntensity) {
   mqttClient.publish(MqttTopics.LIGHT_INTENSITY, lightIntensity);
 }
 
-function sendLightSensorStatus() {
+function sendLightSensorStatus(lightSensorStatus: LightSensorStatus) {
   mqttClient.publish(MqttTopics.LIGHT_SENSOR_STATUS, lightSensorStatus);
 }
-
-/**
- * Want to notify controller that sensor is disconnected before shutting down
- */
-function handleAppExit (options: {exit?: boolean}|null, err?:Error) {
-  lightSensorStatus = LightSensorStatus.NOT_AVAILABLE;
-  sendLightSensorStatus();
-  if (err) {
-    console.log(err.stack)
-  }
-
-  if (options.exit) {
-    process.exit()
-  }
-}
-
-/**
- * Handle the different ways an application can shutdown
- */
-process.on('exit', handleAppExit.bind(null, {
-  exit: true
-}))
-process.on('SIGINT', handleAppExit.bind(null, {
-  exit: true
-}))
-process.on('unhandledRejection', (err: Error) => {
-  handleAppExit.bind(null, {exit: true}, err);
-});
-process.on('uncaughtException', (err: Error) => {
-  handleAppExit.bind(null, {exit: true}, err);
-});

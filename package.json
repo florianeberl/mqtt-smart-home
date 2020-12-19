@@ -8,6 +8,7 @@
     "test": "jest",
     "mqtt:broker": "aedes",
     "mqtt:subscriber:sms": "node source/subscriber_sms.js",
+    "mqtt:subscriber:console": "node source/subscriber_console.js",
     "mqtt:publisher": "node source/publisher.js"
   },
   "author": "Florian Eberl",
