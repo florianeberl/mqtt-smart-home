@@ -4,7 +4,7 @@ import { getMqttUrl } from './helper';
 
 console.log(`Publisher: ${getMqttUrl()}`);
 
-const readoutIntervalMs = 2_000;
+const readoutIntervalMs = 10_000;
 const debounceTimeMs = 1_000;
 
 let lightIntensity: LightIntensity = LightIntensity.UNKNOWN;
