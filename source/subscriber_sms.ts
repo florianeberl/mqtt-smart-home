@@ -23,6 +23,10 @@ let lightIntensity: LightIntensity = LightIntensity.UNKNOWN;
 mqttClient.on('connect', () => {
   mqttClient.subscribe(MqttTopics.LIGHT_INTENSITY);
   mqttClient.subscribe(MqttTopics.LIGHT_SENSOR_STATUS);
+
+  // request current status
+  mqttClient.publish(MqttTopics.LIGHT_SENSOR_STATUS_UPDATE_REQUEST, "");
+  mqttClient.publish(MqttTopics.LIGHT_INTENSITY_UPDATE_REQUEST, "");
 })
 
 mqttClient.on('message', (topic, message) => {
@@ -31,6 +35,9 @@ mqttClient.on('message', (topic, message) => {
   if(topic === MqttTopics.LIGHT_INTENSITY) {
     const newLightIntensity = <LightIntensity>message.toString();
     console.log(`newLightIntensity: ${newLightIntensity} | lightIntensity: ${lightIntensity} | ${(newLightIntensity != lightIntensity)}`);
+    // this check is still necessary due to
+    // 1) debouncing (could be resolved in publisher)
+    // 2) other subscribers asking for updates (cannot be resolved!)
     if(newLightIntensity != lightIntensity) {
       lightIntensity = newLightIntensity;
       sendSms(lightIntensity);

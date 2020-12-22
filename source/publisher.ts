@@ -20,6 +20,7 @@ function lightChange(err: Error, state: BinaryValue) {
 
   const newIntensity = getLightIntensityFromGpio(state);
   console.log(`New intensity: ${newIntensity}`);
+  // Debouncing still sends the message, but hides the toggling
   sendLightIntensity(newIntensity);
 }
 

@@ -11,6 +11,9 @@ let lightIntensity: LightIntensity = LightIntensity.UNKNOWN;
 mqttClient.on('connect', () => {
   mqttClient.subscribe(MqttTopics.LIGHT_INTENSITY);
   mqttClient.subscribe(MqttTopics.LIGHT_SENSOR_STATUS);
+
+  mqttClient.publish(MqttTopics.LIGHT_SENSOR_STATUS_UPDATE_REQUEST, "");
+  mqttClient.publish(MqttTopics.LIGHT_INTENSITY_UPDATE_REQUEST, "");
 })
 
 mqttClient.on('message', (topic, message) => {
@@ -41,14 +44,3 @@ function printData(lightIntensity: LightIntensity) {
   }
   console.log(`Light intensity update: ${messageText}`);
 }
-
-// TBD: we could regularly pull a status
-/*
-setInterval(() => {
-  client.publish(MqttTopics.LIGHT_SENSOR_STATUS_UPDATE_REQUEST, "");
-}, 60_000)
-
-setInterval(() => {
-  client.publish(MqttTopics.LIGHT_INTENSITY_UPDATE_REQUEST, "");
-}, 20_000);
-*/
