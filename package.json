@@ -6,7 +6,7 @@
     "compile": "tsc",
     "compile:watch": "tsc -w --skipLibCheck",
     "test": "jest",
-    "mqtt:broker": "aedes",
+    "mqtt:broker": "aedes --host 0.0.0.0 --port 1883",
     "mqtt:subscriber:sms": "node source/subscriber_sms.js",
     "mqtt:subscriber:console": "node source/subscriber_console.js",
     "mqtt:publisher": "node source/publisher.js"
