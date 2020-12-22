@@ -15,13 +15,15 @@ let lightSensorStatus: LightSensorStatus = LightSensorStatus.UNKNOWN;
 
 const mqttClient = Mqtt.connect(`${getMqttUrl()}`);
 
-GpioPromise.setup(GPIO_PIN, GpioPromise.DIR_IN, GpioPromise.EDGE_BOTH).then((value: boolean) => {
-  if(value) {
+Gpio.setup(GPIO_PIN, Gpio.DIR_IN, Gpio.EDGE_BOTH, (err?: Error, val?: boolean) => {
+  console.log(`Error: ${err}`);
+  console.log(`Value: ${val}`);
+  if(!err) {
     lightSensorStatus = LightSensorStatus.AVAILABLE;
   } else {
-    console.error('GPIO setup failed!');
+    lightSensorStatus = LightSensorStatus.NOT_AVAILABLE;
   }
-});
+})
 
 mqttClient.on("connect", async () => {
   // console.log(packet); // Param: packet: Mqtt.Packet
