@@ -1,5 +1,5 @@
 import * as Mqtt from 'mqtt';
-import * as Gpio from 'rpi-gpio';
+import { Gpio } from 'onoff';
 import { MqttTopics, LightIntensity, LightSensorStatus } from './types';
 import { getMqttUrl } from './helper';
 
@@ -12,38 +12,17 @@ let lightSensorStatus: LightSensorStatus = LightSensorStatus.UNKNOWN;
 
 const mqttClient = Mqtt.connect(`${getMqttUrl()}`);
 
-Gpio.setMode("mode_rpi");
+const lightInput = new Gpio(GPIO_PIN, 'in', 'both');
 
-Gpio.on('change', (channel: number, value: boolean) => {
-  if (channel === GPIO_PIN) {
-    const intensity: LightIntensity = getLightIntensityFromGpio(value);
-    console.log(`Channel: ${channel} | LightIntensity: ${intensity}`);
-    if(lightIntensity !== intensity) {
-      console.log('Value really changed'); // TODO: trigger debounce timeout and read again
-    }
-  } else {
-    console.log(`Unknown channel: ${channel}`);
-  }
-});
-
-Gpio.setup(GPIO_PIN, Gpio.DIR_IN, Gpio.EDGE_BOTH, (err?: Error, val?: boolean) => {
+function lightChange(err: Error, state: unknown) {
   console.log(`Error: ${err}`);
-  console.log(`Value: ${val}`);
-  if(!err) {
-    lightSensorStatus = LightSensorStatus.AVAILABLE;
-  } else {
-    lightSensorStatus = LightSensorStatus.NOT_AVAILABLE;
-  }
-});
+  console.log(`State: ${state}`);
+}
 
+lightInput.watch(lightChange);
 
-setInterval(() => {
-  Gpio.read(GPIO_PIN, (err?: Error, val?: boolean) => {
-    console.log('READ');
-    console.log(`Error: ${err}`);
-    console.log(`Value: ${val}`);
-  })
-}, 2_000);
+// TODO 
+// lightInput.readSync();
 
 mqttClient.on("connect", () => {
   // console.log(packet); // Param: packet: Mqtt.Packet
