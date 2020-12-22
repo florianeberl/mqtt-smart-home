@@ -12,6 +12,8 @@ let lightSensorStatus: LightSensorStatus = LightSensorStatus.UNKNOWN;
 
 const mqttClient = Mqtt.connect(`${getMqttUrl()}`);
 
+Gpio.setMode("mode_rpi");
+
 Gpio.on('change', (channel: number, value: boolean) => {
   if (channel === GPIO_PIN) {
     const intensity: LightIntensity = getLightIntensityFromGpio(value);
@@ -32,7 +34,16 @@ Gpio.setup(GPIO_PIN, Gpio.DIR_IN, Gpio.EDGE_BOTH, (err?: Error, val?: boolean) =
   } else {
     lightSensorStatus = LightSensorStatus.NOT_AVAILABLE;
   }
-})
+});
+
+
+setInterval(() => {
+  Gpio.read(GPIO_PIN, (err?: Error, val?: boolean) => {
+    console.log('READ');
+    console.log(`Error: ${err}`);
+    console.log(`Value: ${val}`);
+  })
+}, 2_000);
 
 mqttClient.on("connect", () => {
   // console.log(packet); // Param: packet: Mqtt.Packet
