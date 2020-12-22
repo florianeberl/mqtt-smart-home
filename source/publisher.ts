@@ -1,5 +1,5 @@
 import * as Mqtt from 'mqtt';
-import { Gpio } from 'onoff';
+import { Gpio, BinaryValue } from 'onoff';
 import { MqttTopics, LightIntensity, LightSensorStatus } from './types';
 import { getMqttUrl } from './helper';
 
@@ -7,7 +7,6 @@ console.log(`Publisher: ${getMqttUrl()}`);
 
 const GPIO_PIN = 23;
 
-let lightIntensity: LightIntensity = LightIntensity.UNKNOWN;
 let lightSensorStatus: LightSensorStatus = LightSensorStatus.UNKNOWN;
 
 const mqttClient = Mqtt.connect(`${getMqttUrl()}`);
@@ -17,6 +16,10 @@ const lightInput = new Gpio(GPIO_PIN, 'in', 'both');
 function lightChange(err: Error, state: unknown) {
   console.log(`Error: ${err}`);
   console.log(`State: ${state}`);
+  const newIntensity: LightIntensity = getLightIntensityFromGpio(lightInput.readSync());
+  console.log(`New intensity: ${newIntensity}`);
+  // TODO debounce timer and double checking before transmission...
+  sendLightIntensity(newIntensity);
 }
 
 lightInput.watch(lightChange);
@@ -29,6 +32,7 @@ mqttClient.on("connect", () => {
   mqttClient.subscribe(MqttTopics.LIGHT_INTENSITY_UPDATE_REQUEST);
   mqttClient.subscribe(MqttTopics.LIGHT_SENSOR_STATUS_UPDATE_REQUEST);
   sendLightSensorStatus(lightSensorStatus);
+  sendLightIntensity(getLightIntensityFromGpio(lightInput.readSync()));
 });
 
 mqttClient.on('message', (topic, message) => {
@@ -36,7 +40,7 @@ mqttClient.on('message', (topic, message) => {
 
   switch(topic) {
     case MqttTopics.LIGHT_INTENSITY_UPDATE_REQUEST:
-      sendLightIntensity(lightIntensity);
+      sendLightIntensity(getLightIntensityFromGpio(lightInput.readSync()));
       break;
     case MqttTopics.LIGHT_SENSOR_STATUS_UPDATE_REQUEST:
       sendLightSensorStatus(lightSensorStatus);
@@ -46,7 +50,7 @@ mqttClient.on('message', (topic, message) => {
   }
 });
 
-function getLightIntensityFromGpio(gpioIn: boolean): LightIntensity {
+function getLightIntensityFromGpio(gpioIn: BinaryValue): LightIntensity {
   if(gpioIn) { // sensor pin high --> intensity low --> dark
     return LightIntensity.DARK;
   } else { // sensor pin low --> intensity high --> bright
