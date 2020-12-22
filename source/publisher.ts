@@ -6,26 +6,24 @@ import { getMqttUrl } from './helper';
 console.log(`Publisher: ${getMqttUrl()}`);
 
 const GPIO_PIN = 23;
+const debounceTimeout = 2_000;
 
 let lightSensorStatus: LightSensorStatus = LightSensorStatus.UNKNOWN;
 
 const mqttClient = Mqtt.connect(`${getMqttUrl()}`);
 
-const lightInput = new Gpio(GPIO_PIN, 'in', 'both');
+const lightInput = new Gpio(GPIO_PIN, 'in', 'both', {debounceTimeout: debounceTimeout});
 
-function lightChange(err: Error, state: unknown) {
-  console.log(`Error: ${err}`);
-  console.log(`State: ${state}`);
-  const newIntensity: LightIntensity = getLightIntensityFromGpio(lightInput.readSync());
+function lightChange(err: Error, state: BinaryValue) {
+  // TBD error handling
+  if (err) throw err;
+
+  const newIntensity = getLightIntensityFromGpio(state);
   console.log(`New intensity: ${newIntensity}`);
-  // TODO debounce timer and double checking before transmission...
   sendLightIntensity(newIntensity);
 }
 
 lightInput.watch(lightChange);
-
-// TODO 
-// lightInput.readSync();
 
 mqttClient.on("connect", () => {
   // console.log(packet); // Param: packet: Mqtt.Packet
@@ -59,9 +57,11 @@ function getLightIntensityFromGpio(gpioIn: BinaryValue): LightIntensity {
 }
 
 function sendLightIntensity(lightIntensity: LightIntensity) {
+  console.log(`sendLightIntensity: ${lightIntensity}`);
   mqttClient.publish(MqttTopics.LIGHT_INTENSITY, lightIntensity);
 }
 
 function sendLightSensorStatus(lightSensorStatus: LightSensorStatus) {
+  console.log(`sendLightSensorStatus: ${lightSensorStatus}`);
   mqttClient.publish(MqttTopics.LIGHT_SENSOR_STATUS, lightSensorStatus);
 }
