@@ -1,9 +1,12 @@
 import * as Mqtt from 'mqtt';
+import * as Gpio from 'rpi-gpio';
+import { promise as GpioPromise } from 'rpi-gpio';
 import { MqttTopics, LightIntensity, LightSensorStatus } from './types';
 import { getMqttUrl } from './helper';
 
 console.log(`Publisher: ${getMqttUrl()}`);
 
+const GPIO_PIN = 23;
 const readoutIntervalMs = 10_000;
 const debounceTimeMs = 1_000;
 
@@ -12,13 +15,18 @@ let lightSensorStatus: LightSensorStatus = LightSensorStatus.UNKNOWN;
 
 const mqttClient = Mqtt.connect(`${getMqttUrl()}`);
 
+GpioPromise.setup(GPIO_PIN, GpioPromise.DIR_IN, GpioPromise.EDGE_BOTH).then((value: boolean) => {
+  if(value) {
+    lightSensorStatus = LightSensorStatus.AVAILABLE;
+  } else {
+    console.error('GPIO setup failed!');
+  }
+});
+
 mqttClient.on("connect", async () => {
   // console.log(packet); // Param: packet: Mqtt.Packet
   mqttClient.subscribe(MqttTopics.LIGHT_INTENSITY_UPDATE_REQUEST);
   mqttClient.subscribe(MqttTopics.LIGHT_SENSOR_STATUS_UPDATE_REQUEST);
-  sendLightSensorStatus(lightSensorStatus);
-  // TODO connect GPIO PIN
-  lightSensorStatus = LightSensorStatus.AVAILABLE;
   sendLightSensorStatus(lightSensorStatus);
 });
 
@@ -37,30 +45,29 @@ mqttClient.on('message', (topic, message) => {
   }
 });
 
-setInterval(readLightStatus, readoutIntervalMs);
+Gpio.on('changed', (channel: number, value: boolean) => {
+  if (channel === GPIO_PIN) {
+    const intensity: LightIntensity = getLightIntensityFromGpio(value);
+    console.log(`Channel: ${channel} | LightIntensity: ${intensity}`);
+    if(lightIntensity !== intensity) {
+      console.log('Value really changed'); // TODO: trigger debounce timeout and read again
+    }
+  } else {
+    console.log(`Unknown channel: ${channel}`);
+  }
+})
 
-function getGpioInput(): LightIntensity {
-  // TBD: what does High / Low aka true / false really mean?
-  const gpioRawValue: boolean = (Math.random() < 0.5) ? false : true;
-  return (gpioRawValue) ? LightIntensity.BRIGHT : LightIntensity.DARK;
+async function readGpioInput() {
+  const result: boolean = await GpioPromise.read(GPIO_PIN);
+  const intensity: LightIntensity = getLightIntensityFromGpio(result);
+  console.log(`readGpioInput: Light intensity: ${intensity}`)
 }
 
-async function readLightStatus(): Promise<void> {
-  
-  let changed: boolean = false;
-  let newLightIntensity: LightIntensity = getGpioInput();
-  if (newLightIntensity !== lightIntensity) {
-    await new Promise(resolve => setTimeout(resolve, debounceTimeMs));
-    newLightIntensity = getGpioInput();
-    if(newLightIntensity !== lightIntensity) {
-      changed = true;
-    }
-  }
-  lightIntensity = newLightIntensity;
-  console.log(`Light Status: ${lightIntensity}`);
-  if(changed) {
-    console.log(`Light Status: ${lightIntensity} --> CHANGE DETECTED`);
-    sendLightIntensity(lightIntensity);
+function getLightIntensityFromGpio(gpioIn: boolean): LightIntensity {
+  if(gpioIn) { // sensor pin high --> intensity low --> dark
+    return LightIntensity.DARK;
+  } else { // sensor pin low --> intensity high --> bright
+    return LightIntensity.BRIGHT;
   }
 }
 
@@ -71,3 +78,5 @@ function sendLightIntensity(lightIntensity: LightIntensity) {
 function sendLightSensorStatus(lightSensorStatus: LightSensorStatus) {
   mqttClient.publish(MqttTopics.LIGHT_SENSOR_STATUS, lightSensorStatus);
 }
+
+setInterval(readGpioInput, readoutIntervalMs);
