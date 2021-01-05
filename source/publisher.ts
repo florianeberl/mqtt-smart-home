@@ -5,12 +5,20 @@ import { getMqttUrl } from './helper';
 
 console.log(`Publisher: ${getMqttUrl()}`);
 
+let lightIntensity: LightIntensity = LightIntensity.UNKNOWN;
+
 const GPIO_PIN = 23;
-const debounceTimeout = 2_000;
+const debounceTimeout = 10_000;
 
-let lightSensorStatus: LightSensorStatus = LightSensorStatus.UNKNOWN;
-
-const mqttClient = Mqtt.connect(`${getMqttUrl()}`);
+// https://www.linux-magazin.de/ausgaben/2015/11/mqtt/2/
+const mqttClient = Mqtt.connect(`${getMqttUrl()}`, {
+  will: {
+    topic: MqttTopics.LIGHT_SENSOR_STATUS,
+    payload: LightSensorStatus.NOT_AVAILABLE,
+    retain: true, // broker transmits last known status even if publisher is disconnected
+    qos: 1, // at least once delivered
+  }
+});
 
 const lightInput = new Gpio(GPIO_PIN, 'in', 'both', {debounceTimeout: debounceTimeout});
 
@@ -19,9 +27,12 @@ function lightChange(err: Error, state: BinaryValue) {
   if (err) throw err;
 
   const newIntensity = getLightIntensityFromGpio(state);
-  console.log(`New intensity: ${newIntensity}`);
-  // Debouncing still sends the message, but hides the toggling
-  sendLightIntensity(newIntensity);
+  if(newIntensity !== lightIntensity) {
+    console.log(`New intensity: ${newIntensity}`);
+    // Debouncing still sends the message, but hides the toggling
+    lightIntensity = newIntensity;
+    sendLightIntensity(lightIntensity);
+  }
 }
 
 lightInput.watch(lightChange);
@@ -30,7 +41,7 @@ mqttClient.on("connect", () => {
   // console.log(packet); // Param: packet: Mqtt.Packet
   mqttClient.subscribe(MqttTopics.LIGHT_INTENSITY_UPDATE_REQUEST);
   mqttClient.subscribe(MqttTopics.LIGHT_SENSOR_STATUS_UPDATE_REQUEST);
-  sendLightSensorStatus(lightSensorStatus);
+  sendLightSensorStatus(LightSensorStatus.AVAILABLE);
   sendLightIntensity(getLightIntensityFromGpio(lightInput.readSync()));
 });
 
@@ -42,7 +53,7 @@ mqttClient.on('message', (topic, message) => {
       sendLightIntensity(getLightIntensityFromGpio(lightInput.readSync()));
       break;
     case MqttTopics.LIGHT_SENSOR_STATUS_UPDATE_REQUEST:
-      sendLightSensorStatus(lightSensorStatus);
+      sendLightSensorStatus(LightSensorStatus.AVAILABLE);
       break;
     default:
       break;
