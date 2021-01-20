@@ -7,6 +7,9 @@
 1. `npm i`
 2. `npm run compile`
 
+## Credentials and configuration
+MQTT and Twilio are configured with environment variables using a `.env` file. Please rename `.env.example` and set the variables accordingly
+
 ## How to run the project
 The project consists of 3 different parts
 1. MQTT Broker: `npm run mqtt:broker`
